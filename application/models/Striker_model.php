@@ -146,6 +146,18 @@ class Striker_model extends CI_Model
       $ret_data = is_object($result_obj) ? $result_obj->row_array() : [];
       return $ret_data;
     }
+
+		 public function get_user_interlock($part_id = '', $user_id='')
+    {
+      $this->db->select('bx.user_id as user_id,u.name as user_name');
+      $this->db->from('box_slip_user_data as bx');
+			$this->db->join('user_master as u',"u.id = bx.user_id");
+      $this->db->where("JSON_EXTRACT(`part_json`, '$.part_id') =", $part_id);
+      $this->db->where("user_id !=", $user_id);
+      $result_obj = $this->db->get();
+      $ret_data = is_object($result_obj) ? $result_obj->row_array() : [];
+      return $ret_data;
+    }
     public function insert_box_slip_scann_data($data=[])
     {
       $this->db->insert('box_slip_user_data', $data);
