@@ -32,6 +32,11 @@
                     <input type="text" class="form-control mt-4 config-val" name="{$config['name']
                   }" value="{$config.value}">
                   </div>
+					{else if $config['type'] == 'check_box' }
+                  <div class="col-sm-4">
+                    <input type="hidden"   name="{$config['name']}" value="0">
+                    <input type="checkbox" {if $config.value==1} checked {/if}  name="{$config['name']}" value="1">
+                  </div>
                 {else if $config['type'] == 'file' }
                   <div class="col-sm-4">
                     <input type="file" id="company_logo" class="form-control mt-4"  name="{$config['name']
