@@ -132,6 +132,7 @@ const page = {
             let params_obj = {};
             params_obj.job_sticker_id = job_sticker_id;
             params_obj.reason = reason;
+            params_obj.pdf_url = pdfUrl;
             $.ajax({
                     url: 'striker/reprint_job_striker_data',
                     method: 'POST',
