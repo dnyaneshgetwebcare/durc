@@ -110,7 +110,18 @@ public function logdata($log_file, $data)
 		$data['part_data'] = $part_data;
 		$this->smarty->loadView('job_stiker.tpl', $data);
 	}
+function check_local_file_exists_from_url($url) {
+    $CI =& get_instance();
+    $CI->load->helper('url');
 
+    $baseUrl = base_url(); // e.g., http://localhost/durc_shared/
+    $basePath = FCPATH;    // e.g., C:/xampp/htdocs/durc_shared/
+
+    $relativePath = str_replace($baseUrl, '', $url);
+    $fullPath = $basePath . $relativePath;
+
+    return file_exists($fullPath);
+}
 	public function generate_job_striker()
 	{
 		$post_data = $this->input->post();
@@ -205,6 +216,81 @@ public function logdata($log_file, $data)
 		exit();
 	}
 
+	public function regenerate_print_file($job_id)
+	{
+		$job_sticker_data = $this->striker_model->get_job_sticker_by_id($job_id);
+
+		//$part_data['customer_logo'] = base_url() . "public/uploads/parts/" . $part_data['customer_logo'];
+if (isset($job_sticker_data['striker_data']) ) {
+	$part_data = json_decode($job_sticker_data['striker_data'], true);
+	$job_striker_id = $job_id;
+	$part_id = $job_sticker_data['part_id'];
+	$part_sr_no = $job_sticker_data['part_serial_number'];
+	$part_sr_no_split = explode("-",$part_sr_no);
+	$prod_date = $part_sr_no_split[0];
+	$job_striker_count = $part_sr_no_split[1];
+	$prod_date = strtotime($prod_date);
+	$tempDir = "public/uploads/qr_code/" . date("Y",$prod_date) . "/";
+	if (!is_dir($tempDir)) {
+		mkdir($tempDir, 0777, true);
+	}
+	$tempDir .= date("m", $prod_date) . "/";
+	if (!is_dir($tempDir)) {
+		mkdir($tempDir, 0777, true);
+	}
+	$tempDir .= $part_id . "/";
+	if (!is_dir($tempDir)) {
+		mkdir($tempDir, 0777, true);
+	}
+
+	$qr_fileName = 'qr_code_' . date("Y_m_d" , $prod_date) . "_" . ($job_striker_count) . '.svg';
+	$pngAbsoluteFilePath = $tempDir . $qr_fileName;
+	$this->generate_qr($part_data, $pngAbsoluteFilePath, $job_striker_id);
+	$part_data['qr_code'] = base_url() . $pngAbsoluteFilePath;
+
+	$striker_fileName = 'job_striker_' . date("Y_m_d",$prod_date) . "_" . ($job_striker_count) . '.pdf';
+	$strikerDir = dirname(dirname(__DIR__)) . "/public/uploads/job_striker/" . $striker_fileName;
+	$part_data['job_striker'] = base_url() . "/public/uploads/job_striker/" . $striker_fileName;
+	$this->generate_striker($strikerDir, $part_data);
+	return $part_data['job_striker'];
+}
+
+
+}
+
+	public function regenerate_box_sticker($box_id)
+	{
+		$box_slip_data = $this->striker_model->get_box_data($box_id);
+		$printing_date = strtotime($box_slip_data['paking_date']);
+		$print_data = [
+						"part_id" => $box_slip_data['part_id'],
+						"part_name" => $box_slip_data['part_name'],
+						"start_serial_number" => $box_slip_data['start_serial_number'],
+						"end_serial_number" => $box_slip_data['end_serial_number'],
+						"box_packing_qty" => $box_slip_data['box_packing_qty'],
+						"box_number" => $box_slip_data['box_number'],
+						"shift" => $box_slip_data['shift'],
+						"part_json" => $box_slip_data['part_json'],
+						"company_name" => $this->config->item("company_name_with_address"),
+						"paking_date" =>$box_slip_data['paking_date'],
+						"customer_part_number" => $box_slip_data['customer_part_number'],
+						"document_number" => $this->config->item("documnet_name"),
+						"refrence" => $this->config->item("reference_number")
+					];
+					// pr($print_data,1);
+					$tempDir = "public/uploads/box_slip/" . date("Y", $printing_date) . "/";
+					if (!is_dir($tempDir)) {
+						mkdir($tempDir, 0777, true);
+					}
+					$tempDir .= date("m", $printing_date) . "/";
+					if (!is_dir($tempDir)) {
+						mkdir($tempDir, 0777, true);
+					}
+					$tempDir .= "box_slip_" . $box_slip_data['box_number'] . ".pdf";
+					$this->box_slip_prints($print_data, $tempDir);
+					$pdf_url = base_url() . $tempDir;
+					return $pdf_url;
+}
 	public function job_striker_listing()
 	{
 		$column[] = [
@@ -291,9 +377,10 @@ public function logdata($log_file, $data)
 
 	public function reprint_job_striker_data()
 	{
-
+		$pdf_url = $this->input->post("pdf_url");
+		$job_id = $this->input->post("job_sticker_id") ;
 		$insert_data = [
-			"job_stricker_id" => $this->input->post("job_sticker_id"),
+			"job_stricker_id" => $job_id,
 			"reason" => $this->input->post("reason"),
 			"printed_by" => $this->session->userdata("id"),
 			"printed_date" => date("Y-m-d H:i:s")
@@ -305,7 +392,11 @@ public function logdata($log_file, $data)
 			$message = "added successfully.";
 			$success = 1;
 		}
+		if($pdf_file_url== "" || !$this->check_local_file_exists_from_url($pdf_url)){
+			$this->regenerate_print_file($job_id);
+		}
 		$return_arr['success'] = $success;
+		$return_arr['pdf_url'] = $pdf_url;
 		$return_arr['message'] = $message;
 		echo json_encode($return_arr);
 		exit();
@@ -315,9 +406,10 @@ public function logdata($log_file, $data)
 
 	public function reprint_box_slip_data()
 	{
-
+		$box_id = $this->input->post("box_slip_id") ;
+		$pdf_file_url = $this->input->post("pdfurl");
 		$insert_data = [
-			"box_slip_print_id" => $this->input->post("box_slip_id"),
+			"box_slip_print_id" => $box_id,
 			"reason" => $this->input->post("reason"),
 			"printed_by" => $this->session->userdata("id"),
 			"printed_date" => date("Y-m-d H:i:s")
@@ -328,6 +420,9 @@ public function logdata($log_file, $data)
 		if ($insert_id > 0) {
 			$message = "added successfully.";
 			$success = 1;
+		}
+		if($pdf_file_url== "" || !$this->check_local_file_exists_from_url($pdf_file_url)){
+			$pdf_file_url= $this->regenerate_box_sticker($box_id);
 		}
 		$return_arr['success'] = $success;
 		$return_arr['message'] = $message;
