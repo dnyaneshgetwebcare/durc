@@ -130,6 +130,7 @@ const page = {
             let params_obj = {};
             params_obj.box_slip_id = box_slip_id;
             params_obj.reason = reason;
+            params_obj.pdfurl = pdfUrl;
             $.ajax({
                     url: 'striker/reprint_box_slip_data',
                     method: 'POST',
