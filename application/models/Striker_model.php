@@ -65,6 +65,17 @@ class Striker_model extends CI_Model
       $ret_data = is_object($result_obj) ? $result_obj->row_array() : [];
       return $ret_data;
     }
+
+	public function get_job_sticker_by_id($job_id = '')
+	{
+		$this->db->select('j.*');
+		$this->db->from('job_striker as j');
+		$this->db->where('j.job_striker_id ' ,$job_id );
+    $result_obj = $this->db->get();
+      $ret_data = is_object($result_obj) ? $result_obj->row_array() : [];
+      return $ret_data;
+
+		}
     public function get_job_striker_data($condition_arr = [],
         $search_params = "")
     {
@@ -228,6 +239,16 @@ class Striker_model extends CI_Model
       $this->db->from('box_slip_print');
       $this->db->where('YEAR(added_date)',date("Y"));
       $this->db->where('part_id',$part_id);
+      $result_obj = $this->db->get();
+      $ret_data = is_object($result_obj) ? $result_obj->row_array() : [];
+      return $ret_data;
+    }
+		public function get_box_data($box_id = 0)
+    {
+      $this->db->select('b.*, p.part_name as part_name');
+      $this->db->from('box_slip_print as b');
+			$this->db->join('part_master as p',"p.part_id = b.part_id");
+      $this->db->where('box_slip_print_id',$box_id);
       $result_obj = $this->db->get();
       $ret_data = is_object($result_obj) ? $result_obj->row_array() : [];
       return $ret_data;
